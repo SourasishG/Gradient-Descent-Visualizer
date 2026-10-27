@@ -1,103 +1,41 @@
-"""
-================================================================================
-3D LOSS SURFACE VISUALIZATION OF GRADIENT DESCENT
-================================================================================
-Visualizes the 3D 'bowl' (paraboloid) of the loss function L(w, b) and traces
-the 3D trajectory of the model parameters descending into the minimum.
-================================================================================
-"""
-
-import os
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
+# 1. Data Setup (True: w=3, b=2)
+np.random.seed(42)
+X = 2 * np.random.rand(100, 1) - 1
+y = 3.0 * X + 2.0 + np.random.randn(100, 1) * 0.2
 
-def main():
-    os.makedirs("plots", exist_ok=True)
-    print("Generating 3D Loss Surface Visualization...")
+# 2. 3D Grid & Loss Surface (Paraboloid Bowl)
+W, B = np.meshgrid(np.linspace(-2.5, 4.5, 50), np.linspace(-1.5, 3.5, 50))
+Z = np.mean((W[:, :, None] * X.ravel() + B[:, :, None] - y.ravel()) ** 2, axis=2) / 2.0
 
-    # Synthetic data
-    np.random.seed(42)
-    num_samples = 100
-    X = 2 * np.random.rand(num_samples, 1) - 1
-    y = 3.0 * X + 2.0 + np.random.randn(num_samples, 1) * 0.2
+# 3. Track Gradient Descent 3D Path: (w, b, loss)
+w, b, lr = -2.0, -1.0, 0.25
+path = [(w, b, float(np.mean(((w * X + b) - y) ** 2) / 2.0))]
 
-    # Grid of w and b
-    w_vals = np.linspace(-2.5, 4.5, 80)
-    b_vals = np.linspace(-1.5, 3.5, 80)
-    W, B = np.meshgrid(w_vals, b_vals)
+for _ in range(25):
+    err = (w * X + b) - y
+    w = w - lr * float(np.mean(err * X))
+    b = b - lr * float(np.mean(err))
+    path.append((w, b, float(np.mean(((w * X + b) - y) ** 2) / 2.0)))
 
-    # Compute loss over 3D grid
-    X_flat = X.ravel()
-    y_flat = y.ravel()
-    preds = W[:, :, None] * X_flat + B[:, :, None]
-    Z = np.mean((preds - y_flat) ** 2, axis=2) / 2.0
+# 4. Plot 3D Surface and Trajectory
+fig = plt.figure(figsize=(8, 6))
+ax = fig.add_subplot(111, projection="3d")
+ax.plot_surface(W, B, Z, cmap="coolwarm", alpha=0.6)
 
-    # Run Gradient Descent and record 3D path: (w, b, loss)
-    w = -2.0
-    b = -1.0
-    lr = 0.25
-    path_w = [w]
-    path_b = [b]
+p = np.array(path)
+ax.plot(p[:, 0], p[:, 1], p[:, 2], "k-o", markersize=4, label="GD Path")
+ax.scatter([3.0], [2.0], [np.min(Z)], color="gold", s=100, label="Optimum (3, 2)")
 
-    def get_loss(w_val, b_val):
-        error = (w_val * X + b_val) - y
-        return float(np.mean(error ** 2) / 2.0)
+ax.set_title("3D Loss Surface & Gradient Descent Path", fontweight="bold")
+ax.set_xlabel("w (slope)")
+ax.set_ylabel("b (intercept)")
+ax.set_zlabel("Loss")
+ax.legend()
 
-    path_z = [get_loss(w, b)]
-
-    for _ in range(30):
-        error = (w * X + b) - y
-        dw = float(np.mean(error * X))
-        db = float(np.mean(error))
-        w = w - lr * dw
-        b = b - lr * db
-        path_w.append(w)
-        path_b.append(b)
-        path_z.append(get_loss(w, b))
-
-    # Create 3D Plot
-    fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(111, projection="3d")
-
-    # Plot surface
-    surf = ax.plot_surface(
-        W, B, Z,
-        cmap="coolwarm",
-        alpha=0.65,
-        edgecolor="none"
-    )
-
-    # Plot optimization path
-    ax.plot(
-        path_w, path_b, path_z,
-        color="black",
-        linewidth=2.5,
-        marker="o",
-        markersize=4,
-        label="GD Path (Descending)"
-    )
-
-    # Highlight Start and Minimum
-    ax.scatter([path_w[0]], [path_b[0]], [path_z[0]], color="red", s=80, label="Start Point")
-    ax.scatter([3.0], [2.0], [get_loss(3.0, 2.0)], color="gold", s=120, edgecolors="black", marker="*", label="Minimum (w=3, b=2)")
-
-    ax.set_title("3D Loss Surface and Gradient Descent Trajectory", fontsize=13, fontweight="bold", pad=15)
-    ax.set_xlabel("Parameter w (Slope)", fontsize=10, labelpad=8)
-    ax.set_ylabel("Parameter b (Intercept)", fontsize=10, labelpad=8)
-    ax.set_zlabel("Loss L(w, b)", fontsize=10, labelpad=8)
-    ax.view_init(elev=32, azim=225)
-    ax.legend(loc="upper left")
-
-    fig.colorbar(surf, shrink=0.5, aspect=10, pad=0.1, label="Loss Value")
-
-    plt.tight_layout()
-    plt.savefig("plots/04_loss_surface_3d.png", dpi=200)
-    plt.close()
-    print("Saved: plots/04_loss_surface_3d.png")
-
-
-if __name__ == "__main__":
-    main()
-
+plt.tight_layout()
+plt.savefig("plots/04_loss_surface_3d.png", dpi=150)
+plt.close()
+print("Saved 3D loss surface in ~35 lines to plots/04_loss_surface_3d.png")
